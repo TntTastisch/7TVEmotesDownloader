@@ -62,7 +62,7 @@ def extract_ids(url: str):
     m_user = re.search(r"/users/([A-Za-z0-9]+)", url)
     if m_user:
         return {"type": "user", "id": m_user.group(1)}
-    raise ValueError("Konnte weder /emote-sets/<id> noch /users/<id> aus der URL extrahieren.")
+    raise ValueError("Could not extract /emote-sets/<id> or /users/<id> from URL.")
 
 
 def resolve_from_user(user_id: str, timeout: int):
@@ -92,7 +92,7 @@ def resolve_from_user(user_id: str, timeout: int):
             last_err = e
             continue
 
-    raise RuntimeError(f"Konnte Emote-Set-ID für User {user_id} nicht ermitteln: {last_err}")
+    raise RuntimeError(f"Could not determine emote set ID for user {user_id}: {last_err}")
 
 
 def fetch_emote_set(set_id: str, timeout: int):
@@ -235,12 +235,12 @@ def main():
 
     emotes = emote_set.get("emotes", [])
     if not emotes:
-        print("Keine Emotes im Set gefunden.")
+        print("No emotes found in this set.")
         return
 
     title = emote_set.get("name") or set_id
-    print(f"Emote-Set: {title} – {len(emotes)} Emotes")
-    print(f"Zielordner: {outdir.resolve()}")
+    print(f"Emote Set: {title} – {len(emotes)} emotes")
+    print(f"Output Directory: {outdir.resolve()}")
 
     downloaded = 0
     skipped = 0
@@ -251,19 +251,19 @@ def main():
         host_url = e.get("data", {}).get("host", {}).get("url")
 
         if not host_url:
-            print(f"- {name}: kein host.url – übersprungen")
+            print(f"- {name}: missing host.url → skipped")
             skipped += 1
             continue
 
         file_entry, is_animated = best_file_for_emote(e, args.scale)
         if not file_entry:
-            print(f"- {name}: keine Datei in Scale {args.scale} – übersprungen")
+            print(f"- {name}: no file available at scale {args.scale} → skipped")
             skipped += 1
             continue
 
         cdn_url = build_cdn_url(host_url, file_entry.get("name", ""))
         if not cdn_url:
-            print(f"- {name}: fehlerhafte CDN-URL – übersprungen")
+            print(f"- {name}: invalid CDN URL → skipped")
             skipped += 1
             continue
 
@@ -272,14 +272,14 @@ def main():
         try:
             blob = download_bytes(cdn_url, args.timeout)
         except Exception as ex:
-            print(f"- {name}: Download-Fehler: {ex}")
+            print(f"- {name}: download failed → {ex}")
             skipped += 1
             continue
 
         if args.no_convert:
             out_path = outdir / f"{name}_{args.scale}.{ext}"
             out_path.write_bytes(blob)
-            print(f"+ {name}: {out_path.name} (keine Konvertierung)")
+            print(f"+ {name}: {out_path.name} (no conversion)")
             downloaded += 1
             continue
 
@@ -293,11 +293,11 @@ def main():
                 out_path = outdir / f"{name}_{args.scale}.gif"
                 ok = convert_and_save(blob, out_path, animated=True, target_ext="gif")
                 if ok:
-                    print(f"+ {name}: {out_path.name} (konvertiert aus {ext.upper()})")
+                    print(f"+ {name}: {out_path.name} (converted from {ext.upper()})")
                 else:
                     raw_path = outdir / f"{name}_{args.scale}.{ext}"
                     raw_path.write_bytes(blob)
-                    print(f"+ {name}: {raw_path.name} (Original, Konvertierung nicht möglich)")
+                    print(f"+ {name}: {raw_path.name} (original, conversion not possible)")
                 downloaded += 1
         else:
             if ext == "png":
@@ -309,16 +309,16 @@ def main():
                 out_path = outdir / f"{name}_{args.scale}.png"
                 ok = convert_and_save(blob, out_path, animated=False, target_ext="png")
                 if ok:
-                    print(f"+ {name}: {out_path.name} (konvertiert aus {ext.upper()})")
+                    print(f"+ {name}: {out_path.name} (converted from {ext.upper()})")
                 else:
                     raw_path = outdir / f"{name}_{args.scale}.{ext}"
                     raw_path.write_bytes(blob)
-                    print(f"+ {name}: {raw_path.name} (Original, Konvertierung nicht möglich)")
+                    print(f"+ {name}: {raw_path.name} (original, conversion not possible)")
                 downloaded += 1
 
         time.sleep(0.03)
 
-    print(f"Fertig: {downloaded} Dateien gespeichert, {skipped} übersprungen.")
+    print(f"Done: {downloaded} files saved, {skipped} skipped.")
 
 
 if __name__ == "__main__":
